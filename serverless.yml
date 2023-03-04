@@ -1,0 +1,60 @@
+service: chatgpt-telegram
+frameworkVersion: '3'
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: python3.9
+  region: ap-southeast-1
+  iam:
+    role:
+      statements:
+      - Effect: Allow
+        Action:
+          - dynamodb:DescribeTable
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+        Resource:
+          - { "Fn::GetAtt": [chats, Arn] }
+      - Effect: Allow
+        Action:
+          - lambda:InvokeFunction
+        Resource: "*"
+  environment:
+    TABLE_NAME:
+      Ref: chats
+    TELEGRAM_TOKEN: ${env:TELEGRAM_TOKEN}
+    ALLOWED_USERS: ${env:ALLOWED_USERS}
+    OPENAI_API_KEY: ${env:OPENAI_API_KEY}
+
+functions:
+  chat:
+    handler: handler.chat
+    timeout: 30
+    url: true
+  responder:
+    handler: handler.responder
+    timeout: 300
+
+resources:
+  Resources:
+    chats:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: chatid 
+            AttributeType: N
+        KeySchema:
+          - AttributeName: chatid
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 10
+          WriteCapacityUnits: 10
+
+
+plugins:
+  - serverless-python-requirements
